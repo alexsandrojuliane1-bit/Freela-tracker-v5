@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Freela"/>
+<meta name="theme-color" content="#0a0d14"/>
+<title>Freela Tracker</title>
+<link rel="manifest" href="manifest.json"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0d14;--surface:#12151f;--card:#181c2a;--border:#232840;
+  --accent:#4f8ef7;--accent2:#a78bfa;--green:#34d399;--yellow:#fbbf24;
+  --red:#f87171;--orange:#fb923c;--text:#e8eaf0;--muted:#6b7494;--radius:14px;
+  --font:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);}
+#app{display:flex;flex-direction:column;min-height:100vh;padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 18px 12px;position:sticky;top:0;z-index:100;}
+header h1{font-size:19px;font-weight:800;letter-spacing:-.5px;}
+header span{color:var(--accent);}
+
+/* PAGES */
+.page{display:none;flex:1;padding:14px;flex-direction:column;gap:12px;}
+.page.active{display:flex;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.card-title{font-size:10px;font-weight:700;letter-spacing:1.2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+
+/* FORM */
+.form-row{display:flex;gap:8px;margin-bottom:8px;}
+.form-group{flex:1;display:flex;flex-direction:column;gap:4px;}
+label{font-size:11px;color:var(--muted);font-weight:600;}
+input,select,textarea{
+  background:var(--bg);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:14px;padding:9px 11px;width:100%;outline:none;
+  transition:border-color .15s;font-family:var(--font);
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--card);}
+textarea{resize:none;height:56px;font-size:13px;}
+
+/* AUDIO */
+.audio-area{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0;}
+#micBtn{
+  width:66px;height:66px;border-radius:50%;background:var(--accent);
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:26px;transition:background .2s,transform .1s;
+}
+#micBtn.recording{background:var(--red);animation:pulse 1.2s infinite;}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(248,113,113,.5);}
+  70%{box-shadow:0 0 0 14px rgba(248,113,113,0);}
+  100%{box-shadow:0 0 0 0 rgba(248,113,113,0);}
+}
+#micBtn:active{transform:scale(.93);}
+#micStatus{font-size:12px;color:var(--muted);}
+#transcriptBox{
+  background:var(--bg);border:1.5px dashed var(--border);border-radius:10px;
+  padding:11px;font-size:13px;color:var(--text);min-height:46px;width:100%;line-height:1.5;
+}
+
+/* BUTTONS */
+.btn{padding:12px 18px;border-radius:12px;border:none;cursor:pointer;font-size:14px;font-weight:600;font-family:var(--font);transition:opacity .15s,transform .1s;}
+.btn:active{transform:scale(.97);opacity:.85;}
+.btn-primary{background:var(--accent);color:#fff;width:100%;}
+.btn-green{background:var(--green);color:#0a0d14;width:100%;}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--text);}
+.btn-sm{padding:5px 11px;font-size:11px;border-radius:8px;}
+.btn-danger{background:none;border:1.5px solid var(--red);color:var(--red);}
+.btn-icon{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:20px;cursor:pointer;line-height:1;}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:11px;min-width:520px;}
+th{background:var(--bg);color:var(--muted);font-size:9px;letter-spacing:.8px;text-transform:uppercase;padding:7px 9px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 9px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.total-row td{background:var(--surface);font-weight:700;font-size:12px;color:var(--green);border-top:2px solid var(--border);}
+
+/* TAGS */
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;}
+
+/* SUMMARY GRID */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 10px;}
+.stat-label{font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px;}
+.stat-value{font-size:17px;font-weight:800;}
+
+/* SETTINGS company cards */
+.company-config-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative;}
+.company-config-card .remove-btn{position:absolute;top:10px;right:10px;background:none;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer;}
+.add-company-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:none;border:1.5px dashed var(--accent);color:var(--accent);border-radius:var(--radius);padding:14px;width:100%;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;}
+.add-company-btn:hover{background:rgba(79,142,247,.07);}
+
+/* FINANCE */
+.finance-section{margin-bottom:14px;}
+.bar-container{background:var(--bg);border-radius:8px;height:10px;overflow:hidden;margin-top:6px;}
+.bar-fill{height:100%;border-radius:8px;transition:width .4s;}
+
+/* MONTH */
+.month-selector select{font-size:13px;padding:7px 10px;flex:1;}
+.month-selector{display:flex;align-items:center;gap:8px;}
+
+/* CHART WRAPPER */
+.chart-wrap{position:relative;width:100%;height:220px;}
+
+/* TOAST */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#0a0d14;padding:9px 18px;border-radius:30px;font-size:12px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px 18px 32px;width:100%;max-width:480px;}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:14px;}
+
+/* EMPTY */
+.empty{text-align:center;padding:36px 20px;color:var(--muted);}
+.empty .icon{font-size:36px;margin-bottom:8px;}
+
+/* NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:200;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 0 7px;font-size:9px;color:var(--muted);cursor:pointer;border:none;background:none;font-family:var(--font);font-weight:700;transition:color .15s;gap:3px;}
+.nav-item .ni{font-size:19px;}
+.nav-item.active{color:var(--accent);}
+
+/* TABS inside page */
+.inner-tabs{display:flex;gap:6px;margin-bottom:10px;}
+.inner-tab{flex:1;padding:7px 0;border-radius:9px;border:1.5px solid var(--border);background:none;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;}
+.inner-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+</style>
+</head>
+<body>
+<div id="app">
+<header><h1>Freela <span>Tracker</span></h1></header>
+
+<!-- ═══ PAGE: REGISTRAR ═══ -->
+<div class="page active" id="page-add">
+  <div class="card">
+    <div class="card-title">🎙 Falar ou digitar</div>
+    <div class="audio-area">
+      <button id="micBtn" onclick="toggleMic()">🎤</button>
+      <span id="micStatus">Toque para gravar</span>
+      <div id="transcriptBox"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" style="margin-top:6px;width:100%" onclick="parseTranscript()">✨ Preencher com áudio</button>
+  </div>
+  <div class="card">
+    <div class="card-title">✏️ Manual</div>
+    <div class="form-row">
+      <div class="form-group"><label>Data</label><input type="date" id="fData"/></div>
+      <div class="form-group"><label>Empresa</label><select id="fEmpresa"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Entrada</label><input type="time" id="fEntrada"/></div>
+      <div class="form-group"><label>Saída</label><input type="time" id="fSaida"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Alimentação (R$)</label><input type="number" id="fAlimentacao" placeholder="0" min="0" step="0.01"/></div>
+      <div class="form-group"><label>Uber/Transp. (R$)</label><input type="number" id="fUber" placeholder="0" min="0" step="0.01"/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Observação</label><textarea id="fObs" placeholder="Ex: evento especial..."></textarea></div>
+    <button class="btn btn-primary" onclick="addEntry()">+ Adicionar registro</button>
+  </div>
+</div>
+
+<!-- ═══ PAGE: TABELA ═══ -->
+<div class="page" id="page-table">
+  <div class="card" style="padding:10px 12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="month-selector" style="flex:1"><select id="filterMonth" onchange="renderTable()"></select></div>
+      <select id="filterEmpresa" onchange="renderTable()" style="font-size:12px;padding:7px 10px;border-radius:10px;background:var(--bg);border:1.5px solid var(--border);color:var(--text);font-family:var(--font)">
+        <option value="">Todas empresas</option>
+      </select>
+    </div>
+  </div>
+  <div class="card" style="padding:0 0 4px">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Data</th><th>Empresa</th><th>Horário</th><th>H.Extra</th>
+          <th>Base</th><th>Extra R$</th><th>Alim.</th><th>Uber</th><th>Total</th><th></th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+        <tfoot id="tableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: FINANÇAS ═══ -->
+<div class="page" id="page-finance">
+  <div class="card" style="padding:10px 12px">
+    <div class="inner-tabs">
+      <button class="inner-tab active" onclick="finTab('monthly',this)">Mensal</button>
+      <button class="inner-tab" onclick="finTab('annual',this)">12 Meses</button>
+    </div>
+    <div class="month-selector" id="finMonthWrap"><select id="finMonth" onchange="renderFinance()"></select></div>
+  </div>
+
+  <!-- MONTHLY VIEW -->
+  <div id="finMonthly">
+    <div class="summary-grid" id="finGrid"></div>
+    <div class="card" id="finBars"></div>
+    <div class="card" id="finByCompany"></div>
+  </div>
+
+  <!-- ANNUAL VIEW -->
+  <div id="finAnnual" style="display:none">
+    <div class="card"><div class="card-title">📈 Ganhos mensais — últimos 12 meses</div><div class="chart-wrap"><canvas id="chartEarnings"></canvas></div></div>
+    <div class="card"><div class="card-title">💸 Gastos mensais (alim + transporte)</div><div class="chart-wrap"><canvas id="chartExpenses"></canvas></div></div>
+    <div class="card"><div class="card-title">📊 Lucro líquido (ganhos − gastos)</div><div class="chart-wrap"><canvas id="chartNet"></canvas></div></div>
+    <div class="card" style="padding:0 0 4px"><div class="table-wrap"><table id="annualTable">
+      <thead><tr><th>Mês</th><th>Dias</th><th>Ganhos</th><th>Alim.</th><th>Transporte</th><th>Líquido</th></tr></thead>
+      <tbody id="annualBody"></tbody>
+      <tfoot id="annualFoot"></tfoot>
+    </table></div></div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: RESUMO ═══ -->
+<div class="page" id="page-summary">
+  <div class="card"><div class="card-title">📅 Período</div>
+    <div class="month-selector"><select id="summaryMonth" onchange="renderSummary()"></select></div>
+  </div>
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div class="card" id="byCompany"></div>
+</div>
+
+<!-- ═══ PAGE: CONFIG ═══ -->
+<div class="page" id="page-config">
+  <div id="companyConfigList"></div>
+  <button class="add-company-btn" onclick="openAddModal()" id="addCompanyBtn">＋ Adicionar empresa</button>
+  <button class="btn btn-green" onclick="saveConfig()" style="margin-top:4px">💾 Salvar configurações</button>
+  <div class="card" style="margin-top:4px;padding:12px 14px">
+    <div class="card-title">📤 Exportar relatório</div>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Mês do relatório</label>
+      <select id="exportMonth" style="font-size:13px"></select>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="exportIncludeGastos" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0"/>
+      Incluir alimentação e transporte no total
+    </label>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="exportPDF()">📄 Exportar PDF</button>
+      <button class="btn btn-outline" style="flex:1" onclick="exportCSV()">📊 CSV</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:4px">
+    <div class="card-title" style="color:var(--red)">⚠️ Zona de perigo</div>
+    <button class="btn btn-danger btn-sm" onclick="clearData()">Apagar todos os dados</button>
+  </div>
+</div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-item active" onclick="showPage('add',this)"><span class="ni">➕</span>Registrar</button>
+  <button class="nav-item" onclick="showPage('table',this)"><span class="ni">📋</span>Tabela</button>
+  <button class="nav-item" onclick="showPage('finance',this)"><span class="ni">📊</span>Finanças</button>
+  <button class="nav-item" onclick="showPage('summary',this)"><span class="ni">🗂</span>Resumo</button>
+  <button class="nav-item" onclick="showPage('config',this)"><span class="ni">⚙️</span>Config</button>
+</div>
+
+<!-- MODAL: adicionar empresa -->
+<div class="modal-overlay" id="addModal" onclick="closeModal(event)">
+  <div class="modal">
+    <h3>Nova empresa</h3>
+    <div class="form-group" style="margin-bottom:10px"><label>Nome da empresa</label><input type="text" id="mNome" placeholder="Ex: Empresa 3"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Diária (R$)</label><input type="number" id="mDiaria" placeholder="550" step="0.01"/></div>
+      <div class="form-group"><label>Hora extra (R$)</label><input type="number" id="mExtra" placeholder="45.83" step="0.01"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Horas/dia base</label><input type="number" id="mHoras" placeholder="12" step="0.5"/></div>
+      <div class="form-group"><label>Alim. almoço (R$)</label><input type="number" id="mAlmoco" placeholder="0" step="0.01"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Alim. janta (R$)</label><input type="number" id="mJanta" placeholder="0" step="0.01"/></div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:8px" onclick="confirmAddCompany()">Adicionar</button>
+  </div>
+</div>
+
+<div id="toast">✓ Salvo!</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let entries = JSON.parse(localStorage.getItem('freela_entries') || '[]');
+let companies = JSON.parse(localStorage.getItem('freela_companies') || JSON.stringify([
+  {id:'c1', nome:'Empresa 1', diaria:550, extra:45.83, horas:12, almoco:0,   janta:0,   cor:'#4f8ef7'},
+  {id:'c2', nome:'Empresa 2', diaria:500, extra:41.67, horas:12, almoco:50,  janta:50,  cor:'#a78bfa'},
+]));
+
+const PALETTE = ['#4f8ef7','#a78bfa','#34d399','#fbbf24','#fb923c','#f87171','#38bdf8','#e879f9','#4ade80','#facc15','#60a5fa','#c084fc','#2dd4bf','#f472b6','#818cf8','#fb7185','#a3e635','#fdba74','#67e8f9','#d946ef'];
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  document.getElementById('fData').value = new Date().toISOString().split('T')[0];
+  populateMonthSelectors();
+  populateExportMonth();
+  renderCompanySelects();
+  renderCompanyConfig();
+  renderTable();
+  renderSummary();
+  renderFinance();
+};
+
+function populateExportMonth() {
+  const sel = document.getElementById('exportMonth'); if(!sel) return;
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const now = new Date(); sel.innerHTML = '';
+  for(let y=now.getFullYear(); y>=2024; y--) {
+    const maxM = y===now.getFullYear() ? now.getMonth() : 11;
+    for(let m=maxM; m>=0; m--) {
+      const val=`${y}-${String(m+1).padStart(2,'0')}`;
+      const opt=document.createElement('option');
+      opt.value=val; opt.textContent=`${MONTHS[m]} ${y}`;
+      if(y===now.getFullYear()&&m===now.getMonth()) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+// ─── COMPANIES ───────────────────────────────────────────────────────────────
+function saveCompanies() {
+  localStorage.setItem('freela_companies', JSON.stringify(companies));
+}
+
+function getCompany(id) {
+  return companies.find(c => c.id === id) || companies[0];
+}
+
+function renderCompanySelects() {
+  // form select
+  const fs = document.getElementById('fEmpresa');
+  fs.innerHTML = companies.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  // filter select
+  const fe = document.getElementById('filterEmpresa');
+  fe.innerHTML = '<option value="">Todas empresas</option>' + companies.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+}
+
+function renderCompanyConfig() {
+  const list = document.getElementById('companyConfigList');
+  list.innerHTML = companies.map((c,i) => `
+    <div class="company-config-card">
+      ${companies.length > 1 ? `<button class="remove-btn" onclick="removeCompany('${c.id}')">✕ Remover</button>` : ''}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:12px;height:12px;border-radius:50%;background:${c.cor};flex-shrink:0"></div>
+        <div class="card-title" style="margin:0">💼 ${c.nome}</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nome</label><input type="text" id="cn_${c.id}" value="${c.nome}"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Diária (R$)</label><input type="number" id="cd_${c.id}" value="${c.diaria}" step="0.01"/></div>
+        <div class="form-group"><label>Hora extra (R$)</label><input type="number" id="ce_${c.id}" value="${c.extra}" step="0.01"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Horas/dia base</label><input type="number" id="ch_${c.id}" value="${c.horas}" step="0.5"/></div>
+        <div class="form-group"><label>Almoço (R$/dia)</label><input type="number" id="ca_${c.id}" value="${c.almoco}" step="0.01"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Janta (R$/dia)</label><input type="number" id="cj_${c.id}" value="${c.janta}" step="0.01"/></div>
+      </div>
+    </div>
+  `).join('');
+
+  // show/hide add button
+  document.getElementById('addCompanyBtn').style.display = companies.length >= 20 ? 'none' : 'flex';
+}
+
+function saveConfig() {
+  companies.forEach(c => {
+    const n  = document.getElementById(`cn_${c.id}`);
+    const d  = document.getElementById(`cd_${c.id}`);
+    const e  = document.getElementById(`ce_${c.id}`);
+    const h  = document.getElementById(`ch_${c.id}`);
+    const a  = document.getElementById(`ca_${c.id}`);
+    const j  = document.getElementById(`cj_${c.id}`);
+    if(n) c.nome   = n.value || c.nome;
+    if(d) c.diaria = parseFloat(d.value) || c.diaria;
+    if(e) c.extra  = parseFloat(e.value) || c.extra;
+    if(h) c.horas  = parseFloat(h.value) || c.horas;
+    if(a) c.almoco = parseFloat(a.value) || 0;
+    if(j) c.janta  = parseFloat(j.value) || 0;
+  });
+  saveCompanies();
+  renderCompanySelects();
+  renderCompanyConfig();
+  renderTable(); renderSummary(); renderFinance();
+  showToast('Configurações salvas!');
+}
+
+function removeCompany(id) {
+  if(!confirm('Remover esta empresa? Os registros não serão apagados.')) return;
+  companies = companies.filter(c => c.id !== id);
+  saveCompanies();
+  renderCompanySelects();
+  renderCompanyConfig();
+}
+
+function openAddModal() {
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('mNome').value = `Empresa ${companies.length+1}`;
+  document.getElementById('mDiaria').value = '';
+  document.getElementById('mExtra').value = '';
+  document.getElementById('mHoras').value = '12';
+  document.getElementById('mAlmoco').value = '';
+  document.getElementById('mJanta').value = '';
+}
+function closeModal(e) {
+  if(e.target.id === 'addModal') document.getElementById('addModal').classList.remove('open');
+}
+function confirmAddCompany() {
+  const nome = document.getElementById('mNome').value.trim();
+  if(!nome){alert('Informe o nome!'); return;}
+  const id = 'c' + Date.now();
+  const cor = PALETTE[companies.length % PALETTE.length];
+  companies.push({
+    id, nome, cor,
+    diaria: parseFloat(document.getElementById('mDiaria').value)||550,
+    extra:  parseFloat(document.getElementById('mExtra').value)||45.83,
+    horas:  parseFloat(document.getElementById('mHoras').value)||12,
+    almoco: parseFloat(document.getElementById('mAlmoco').value)||0,
+    janta:  parseFloat(document.getElementById('mJanta').value)||0,
+  });
+  saveCompanies();
+  renderCompanySelects();
+  renderCompanyConfig();
+  document.getElementById('addModal').classList.remove('open');
+  showToast(`${nome} adicionada!`);
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='table') renderTable();
+  if(name==='summary') renderSummary();
+  if(name==='finance') renderFinance();
+}
+
+let currentFinTab = 'monthly';
+function finTab(tab, btn) {
+  currentFinTab = tab;
+  document.querySelectorAll('.inner-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('finMonthly').style.display = tab==='monthly'?'contents':'none';
+  document.getElementById('finAnnual').style.display  = tab==='annual' ?'contents':'none';
+  document.getElementById('finMonthWrap').style.display = tab==='monthly'?'flex':'none';
+  renderFinance();
+}
+
+// ─── MONTHS ──────────────────────────────────────────────────────────────────
+function populateMonthSelectors() {
+  const ids = ['filterMonth','summaryMonth','finMonth'];
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const now = new Date();
+  ids.forEach(id => {
+    const sel = document.getElementById(id); if(!sel) return;
+    sel.innerHTML = '';
+    for(let y=now.getFullYear(); y>=2024; y--) {
+      const maxM = y===now.getFullYear() ? now.getMonth() : 11;
+      for(let m=maxM; m>=0; m--) {
+        const val = `${y}-${String(m+1).padStart(2,'0')}`;
+        const opt = document.createElement('option');
+        opt.value=val; opt.textContent=`${MONTHS[m]} ${y}`;
+        if(y===now.getFullYear()&&m===now.getMonth()) opt.selected=true;
+        sel.appendChild(opt);
+      }
+    }
+  });
+}
+
+// ─── CALC ────────────────────────────────────────────────────────────────────
+function calcEntry(e) {
+  const c = getCompany(e.empresa);
+  let extraHours = 0;
+  if(e.entrada && e.saida) {
+    const [eh,em] = e.entrada.split(':').map(Number);
+    const [sh,sm] = e.saida.split(':').map(Number);
+    let mins = (sh*60+sm)-(eh*60+em);
+    if(mins<0) mins+=24*60;
+    extraHours = Math.max(0, mins/60 - c.horas);
+  }
+  const base      = c.diaria;
+  const extraVal  = extraHours * c.extra;
+  // alim e transporte = gastos PARTICULARES, NÃO entram no total a cobrar
+  const alimConf  = (c.almoco||0) + (c.janta||0);
+  const alimExtra = parseFloat(e.alimentacao)||0;
+  const uber      = parseFloat(e.uber)||0;
+  const totalAlim = alimConf + alimExtra;
+  const totalGasto = totalAlim + uber;                   // gasto particular
+  const total     = base + extraVal;                     // valor a cobrar (sem gastos)
+  const totalComGastos = base + extraVal + totalAlim + uber; // total se incluir gastos
+  return {extraHours, base, extraVal, alimConf, alimExtra, totalAlim, uber, totalGasto, total, totalComGastos};
+}
+
+function fmt(n){ return 'R$ '+n.toFixed(2).replace('.',','); }
+function fmtH(h){ return h>0?h.toFixed(1)+'h':'0h'; }
+
+// ─── ADD ENTRY ───────────────────────────────────────────────────────────────
+function addEntry() {
+  const data    = document.getElementById('fData').value;
+  const empresa = document.getElementById('fEmpresa').value;
+  const entrada = document.getElementById('fEntrada').value;
+  const saida   = document.getElementById('fSaida').value;
+  const alim    = document.getElementById('fAlimentacao').value;
+  const uber    = document.getElementById('fUber').value;
+  const obs     = document.getElementById('fObs').value;
+  if(!data){alert('Informe a data!'); return;}
+  entries.push({id:Date.now(), data, empresa, entrada, saida, alimentacao:alim, uber, obs});
+  localStorage.setItem('freela_entries', JSON.stringify(entries));
+  showToast('Registro adicionado!');
+  document.getElementById('fEntrada').value='';
+  document.getElementById('fSaida').value='';
+  document.getElementById('fAlimentacao').value='';
+  document.getElementById('fUber').value='';
+  document.getElementById('fObs').value='';
+  document.getElementById('transcriptBox').textContent='';
+  document.getElementById('micStatus').textContent='Toque para gravar';
+}
+
+function deleteEntry(id) {
+  if(!confirm('Apagar este registro?')) return;
+  entries = entries.filter(e=>e.id!==id);
+  localStorage.setItem('freela_entries', JSON.stringify(entries));
+  renderTable();
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────────────
+function renderTable() {
+  const month   = document.getElementById('filterMonth').value;
+  const empresa = document.getElementById('filterEmpresa').value;
+  let f = entries.filter(e=>e.data&&e.data.startsWith(month));
+  if(empresa) f = f.filter(e=>e.empresa===empresa);
+  f.sort((a,b)=>a.data.localeCompare(b.data));
+
+  const tbody = document.getElementById('tableBody');
+  const tfoot = document.getElementById('tableFoot');
+  if(!f.length){tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="icon">📭</div>Nenhum registro</div></td></tr>`;tfoot.innerHTML='';return;}
+
+  let totH=0,totBase=0,totExtra=0,totAlim=0,totUber=0,totCobrar=0,totGasto=0;
+  tbody.innerHTML = f.map(e=>{
+    const c2 = calcEntry(e);
+    const co = getCompany(e.empresa);
+    totH+=c2.extraHours; totBase+=c2.base; totExtra+=c2.extraVal;
+    totAlim+=c2.alimExtra; totUber+=c2.uber;
+    totCobrar+=c2.total; totGasto+=c2.totalGasto;
+    const day = e.data?e.data.split('-')[2]:'–';
+    const hor = (e.entrada&&e.saida)?`${e.entrada}–${e.saida}`:'–';
+    return `<tr>
+      <td><b>${day}</b></td>
+      <td><span class="tag" style="background:${co.cor}22;color:${co.cor}">${co.nome}</span></td>
+      <td style="white-space:nowrap">${hor}</td>
+      <td>${fmtH(c2.extraHours)}</td>
+      <td>${fmt(c2.base)}</td>
+      <td style="color:var(--yellow)">${fmt(c2.extraVal)}</td>
+      <td style="color:var(--green);font-weight:700">${fmt(c2.total)}</td>
+      <td style="color:var(--red);font-size:10px">${c2.totalGasto>0?fmt(c2.totalGasto):'–'}</td>
+      <td><button class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red);padding:3px 7px" onclick="deleteEntry(${e.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  tfoot.innerHTML=`
+  <tr class="total-row">
+    <td colspan="3"><b>TOTAL A COBRAR (${f.length} dias)</b></td>
+    <td>${fmtH(totH)}</td><td>${fmt(totBase)}</td><td>${fmt(totExtra)}</td>
+    <td colspan="2" style="color:var(--green)">${fmt(totCobrar)}</td><td></td>
+  </tr>
+  <tr style="background:rgba(248,113,113,.07)">
+    <td colspan="6" style="font-size:11px;color:var(--red);font-weight:600">⚠️ Gastos particulares (alim. + transp.) — não cobrado</td>
+    <td></td><td style="color:var(--red);font-weight:700">${fmt(totGasto)}</td><td></td>
+  </tr>`;
+}
+
+// ─── SUMMARY ─────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const month = document.getElementById('summaryMonth').value;
+  const f = entries.filter(e=>e.data&&e.data.startsWith(month));
+  let totBase=0,totExtra=0,totAlim=0,totUber=0,totTotal=0;
+  const byC = {};
+  f.forEach(e=>{
+    const c2=calcEntry(e);
+    totBase+=c2.base; totExtra+=c2.extraVal; totAlim+=c2.alimExtra; totUber+=c2.uber; totTotal+=c2.total;
+    if(!byC[e.empresa]) byC[e.empresa]={dias:0,base:0,extra:0,alim:0,uber:0,total:0,gasto:0};
+    byC[e.empresa].dias++; byC[e.empresa].base+=c2.base; byC[e.empresa].extra+=c2.extraVal;
+    byC[e.empresa].alim+=c2.alimExtra; byC[e.empresa].uber+=c2.uber;
+    byC[e.empresa].total+=c2.total; byC[e.empresa].gasto+=c2.totalGasto;
+  });
+  const totGasto = totAlim + totUber;
+  document.getElementById('summaryGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">💰 A cobrar</div><div class="stat-value" style="color:var(--green)">${fmt(totTotal)}</div></div>
+    <div class="stat-card"><div class="stat-label">📅 Dias trabalhados</div><div class="stat-value" style="color:var(--accent)">${f.length}</div></div>
+    <div class="stat-card"><div class="stat-label">⏰ H. extras</div><div class="stat-value" style="color:var(--yellow)">${fmt(totExtra)}</div></div>
+    <div class="stat-card" style="border-color:rgba(248,113,113,.3)"><div class="stat-label" style="color:var(--red)">⚠️ Gasto particular</div><div class="stat-value" style="color:var(--red)">${fmt(totGasto)}</div></div>
+  `;
+  const comp = Object.entries(byC).map(([cid,co])=>{
+    const company = getCompany(cid);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+        <span class="tag" style="background:${company.cor}22;color:${company.cor}">${company.nome}</span>
+        <span style="color:var(--muted);font-size:11px">${co.dias} dias</span>
+      </div>
+      <div class="summary-grid">
+        <div class="stat-card"><div class="stat-label">Base</div><div class="stat-value" style="font-size:14px">${fmt(co.base)}</div></div>
+        <div class="stat-card"><div class="stat-label">H. extras</div><div class="stat-value" style="font-size:14px;color:var(--yellow)">${fmt(co.extra)}</div></div>
+        <div class="stat-card"><div class="stat-label">💰 A cobrar</div><div class="stat-value" style="font-size:14px;color:var(--green)">${fmt(co.total)}</div></div>
+        <div class="stat-card" style="border-color:rgba(248,113,113,.3)"><div class="stat-label" style="color:var(--red)">⚠️ Gasto part.</div><div class="stat-value" style="font-size:14px;color:var(--red)">${fmt(co.gasto)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('byCompany').innerHTML=`<div class="card-title">Por empresa</div>${comp||'<p style="color:var(--muted);font-size:12px">Nenhum dado ainda</p>'}`;
+}
+
+// ─── FINANCE ─────────────────────────────────────────────────────────────────
+let chartEarnings=null, chartExpenses=null, chartNet=null;
+
+function renderFinance() {
+  if(currentFinTab==='monthly') renderFinanceMonthly();
+  else renderFinanceAnnual();
+}
+
+function renderFinanceMonthly() {
+  const month = document.getElementById('finMonth').value;
+  const f = entries.filter(e=>e.data&&e.data.startsWith(month));
+
+  let ganhos=0, alimConf=0, alimExtra=0, transporte=0;
+  const byC = {};
+
+  f.forEach(e=>{
+    const c2=calcEntry(e); const co=getCompany(e.empresa);
+    ganhos+=c2.total; alimConf+=c2.alimConf; alimExtra+=c2.alimExtra; transporte+=c2.uber;
+    if(!byC[e.empresa]) byC[e.empresa]={dias:0,ganhos:0,alimConf:0,alimExtra:0,transporte:0,liquido:0};
+    byC[e.empresa].dias++;
+    byC[e.empresa].ganhos+=c2.total;
+    byC[e.empresa].alimConf+=c2.alimConf;
+    byC[e.empresa].alimExtra+=c2.alimExtra;
+    byC[e.empresa].transporte+=c2.uber;
+    byC[e.empresa].liquido+=(c2.total - c2.uber - c2.alimExtra);
+  });
+
+  const totalAlim = alimConf + alimExtra;
+  const gastos = totalAlim + transporte;
+  const liquido = ganhos - transporte - alimExtra;
+  const pctAlim = ganhos>0 ? Math.min(100,(totalAlim/ganhos)*100) : 0;
+  const pctTrans = ganhos>0 ? Math.min(100,(transporte/ganhos)*100) : 0;
+
+  document.getElementById('finGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">💰 A cobrar</div><div class="stat-value" style="color:var(--green)">${fmt(ganhos)}</div></div>
+    <div class="stat-card"><div class="stat-label">📅 Dias</div><div class="stat-value" style="color:var(--accent)">${f.length}</div></div>
+    <div class="stat-card" style="border-color:rgba(248,113,113,.3)"><div class="stat-label" style="color:var(--red)">🍽 Alim. (gasto part.)</div><div class="stat-value" style="color:var(--red)">${fmt(totalAlim)}</div></div>
+    <div class="stat-card" style="border-color:rgba(248,113,113,.3)"><div class="stat-label" style="color:var(--red)">🚗 Transp. (gasto part.)</div><div class="stat-value" style="color:var(--red)">${fmt(transporte)}</div></div>
+  `;
+
+  document.getElementById('finBars').innerHTML=`
+    <div class="card-title">📉 Gastos sobre ganhos</div>
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span>🍽 Alimentação</span><span style="color:var(--orange)">${fmt(totalAlim)} (${pctAlim.toFixed(1)}%)</span></div>
+      <div class="bar-container"><div class="bar-fill" style="width:${pctAlim}%;background:var(--orange)"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span>🚗 Transporte</span><span style="color:var(--yellow)">${fmt(transporte)} (${pctTrans.toFixed(1)}%)</span></div>
+      <div class="bar-container"><div class="bar-fill" style="width:${pctTrans}%;background:var(--yellow)"></div></div>
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+      <span style="color:var(--muted)">Total gastos</span>
+      <span style="color:var(--red);font-weight:700">${fmt(gastos)}</span>
+    </div>
+  `;
+
+  const byComp = Object.entries(byC).map(([cid,co])=>{
+    const company=getCompany(cid);
+    return `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+        <span class="tag" style="background:${company.cor}22;color:${company.cor}">${company.nome}</span>
+        <span style="color:var(--muted);font-size:11px">${co.dias} dias</span>
+      </div>
+      <div class="summary-grid">
+        <div class="stat-card"><div class="stat-label">Ganho</div><div class="stat-value" style="font-size:13px;color:var(--green)">${fmt(co.ganhos)}</div></div>
+        <div class="stat-card"><div class="stat-label">Alim. fixa</div><div class="stat-value" style="font-size:13px;color:var(--orange)">${fmt(co.alimConf)}</div></div>
+        <div class="stat-card"><div class="stat-label">Transp.</div><div class="stat-value" style="font-size:13px;color:var(--yellow)">${fmt(co.transporte)}</div></div>
+        <div class="stat-card"><div class="stat-label">Líquido</div><div class="stat-value" style="font-size:13px;color:var(--accent)">${fmt(co.liquido)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('finByCompany').innerHTML=`<div class="card-title">Por empresa</div>${byComp||'<p style="color:var(--muted);font-size:12px">Nenhum dado</p>'}`;
+}
+
+function renderFinanceAnnual() {
+  const now = new Date();
+  const months12 = [];
+  for(let i=11;i>=0;i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const MONTHS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    months12.push({key, label:`${MONTHS[d.getMonth()]} ${d.getFullYear()}`});
+  }
+
+  const data12 = months12.map(m=>{
+    const f = entries.filter(e=>e.data&&e.data.startsWith(m.key));
+    let ganhos=0,alim=0,transporte=0;
+    f.forEach(e=>{const c2=calcEntry(e); ganhos+=c2.total; alim+=c2.alimConf+c2.alimExtra; transporte+=c2.uber;});
+    return {label:m.label, dias:f.length, ganhos, alim, transporte, liquido:ganhos-alim-transporte};
+  });
+
+  const labels = data12.map(d=>d.label);
+  const mkChart = (id, ref, label, dataArr, color) => {
+    if(ref) ref.destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    return new Chart(ctx,{
+      type:'bar',
+      data:{labels, datasets:[{label, data:dataArr, backgroundColor:color+'88', borderColor:color, borderWidth:1.5, borderRadius:6}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:'#6b7494',font:{size:9}},grid:{color:'#232840'}}, y:{ticks:{color:'#6b7494',font:{size:9},callback:v=>'R$'+v.toLocaleString('pt-BR')},grid:{color:'#232840'}}}}
+    });
+  };
+
+  chartEarnings = mkChart('chartEarnings', chartEarnings, 'Ganhos', data12.map(d=>d.ganhos), '#34d399');
+  chartExpenses = mkChart('chartExpenses', chartExpenses, 'Gastos', data12.map(d=>d.alim+d.transporte), '#f87171');
+  chartNet      = mkChart('chartNet',      chartNet,      'Líquido', data12.map(d=>d.liquido), '#4f8ef7');
+
+  const MONTHS_FULL=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  let totG=0,totA=0,totT=0,totL=0,totD=0;
+  document.getElementById('annualBody').innerHTML = data12.map(d=>{
+    totG+=d.ganhos; totA+=d.alim; totT+=d.transporte; totL+=d.liquido; totD+=d.dias;
+    return `<tr>
+      <td>${d.label}</td>
+      <td>${d.dias}</td>
+      <td style="color:var(--green)">${fmt(d.ganhos)}</td>
+      <td style="color:var(--orange)">${fmt(d.alim)}</td>
+      <td style="color:var(--yellow)">${fmt(d.transporte)}</td>
+      <td style="color:var(--accent);font-weight:700">${fmt(d.liquido)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('annualFoot').innerHTML=`<tr class="total-row">
+    <td><b>TOTAL</b></td><td>${totD}</td>
+    <td>${fmt(totG)}</td><td>${fmt(totA)}</td><td>${fmt(totT)}</td><td>${fmt(totL)}</td>
+  </tr>`;
+}
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+let recognition=null, isRecording=false, transcript='';
+function toggleMic() {
+  if(!('webkitSpeechRecognition' in window)&&!('SpeechRecognition' in window)){
+    const inp=prompt('Digite o registro:');
+    if(inp){document.getElementById('transcriptBox').textContent=inp; transcript=inp;}
+    return;
+  }
+  if(isRecording){recognition.stop(); return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR(); recognition.lang='pt-BR'; recognition.continuous=true; recognition.interimResults=true;
+  recognition.onstart=()=>{isRecording=true; document.getElementById('micBtn').classList.add('recording'); document.getElementById('micBtn').textContent='⏹'; document.getElementById('micStatus').textContent='Gravando...'; transcript='';};
+  recognition.onresult=(e)=>{let f='',interim=''; for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal) f+=e.results[i][0].transcript+' '; else interim+=e.results[i][0].transcript;} transcript+=f; document.getElementById('transcriptBox').textContent=(transcript+interim).trim();};
+  recognition.onend=()=>{isRecording=false; document.getElementById('micBtn').classList.remove('recording'); document.getElementById('micBtn').textContent='🎤'; document.getElementById('micStatus').textContent=transcript?'Áudio capturado!':'Toque para gravar';};
+  recognition.start();
+}
+
+async function parseTranscript() {
+  const text=document.getElementById('transcriptBox').textContent.trim();
+  if(!text){alert('Grave primeiro!'); return;}
+  document.getElementById('micStatus').textContent='⏳ Interpretando...';
+
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const todayDay = now.getDate();
+  const currentYear = now.getFullYear();
+  const currentMonth = String(now.getMonth()+1).padStart(2,'0');
+  const compList = companies.map(c=>`id="${c.id}" nome="${c.nome}"`).join(' | ');
+
+  const prompt = `Você é um assistente que extrai dados de registro de trabalho freelancer de transcrições de áudio em português brasileiro informal.
+
+Data de hoje: ${today} (dia ${todayDay}/${currentMonth}/${currentYear})
+Empresas cadastradas: ${compList}
+
+REGRAS DE EXTRAÇÃO:
+
+1. DATA:
+   - "hoje" = ${today}
+   - "ontem" = calcule o dia anterior
+   - "dia 5", "dia cinco" = ${currentYear}-${currentMonth}-05
+   - "dia 15" = ${currentYear}-${currentMonth}-15
+   - Se não mencionar data = ${today}
+   - Formato de saída SEMPRE: YYYY-MM-DD
+
+2. HORÁRIOS — MUITO IMPORTANTE:
+   - "entrei às 8", "oito horas", "às oito" → entrada: "08:00"
+   - "sete e meia", "7 e meia" → "07:30"
+   - "nove e trinta", "9 e 30" → "09:30"
+   - "vinte e duas horas", "às 22" → saida: "22:00"
+   - "quatro da manhã", "4 da manhã" → "04:00"
+   - "seis da tarde" → "18:00"
+   - "meia-noite" → "00:00"
+   - Sempre HH:MM com zero à esquerda
+   - PRIMEIRA hora mencionada = entrada, SEGUNDA hora = saída
+   - "das X às Y" ou "de X a Y" → entrada X saída Y
+
+3. EMPRESA:
+   - Compare com as empresas cadastradas e retorne o id correto
+   - Se não mencionar = "${companies[0].id}"
+
+4. EXTRAS:
+   - "gastei X de Uber / transporte / ônibus" → uber: X (só número)
+   - "gastei X de alimentação / comida / almoço / janta" → alimentacao: X (só número)
+
+5. OBS: qualquer outra info relevante
+
+Retorne APENAS JSON puro sem markdown sem explicação:
+{"data":"YYYY-MM-DD","empresa":"id","entrada":"HH:MM","saida":"HH:MM","alimentacao":0,"uber":0,"obs":""}
+
+Transcrição: "${text}"`;
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt}]})
+    });
+    const d=await res.json();
+    const raw=d.content?.map(c=>c.text||'').join('').trim();
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+
+    let preview=[];
+    if(parsed.data){document.getElementById('fData').value=parsed.data; const [y,m,dia]=parsed.data.split('-'); preview.push(`📅 ${dia}/${m}`);}
+    if(parsed.empresa){document.getElementById('fEmpresa').value=parsed.empresa; const co=getCompany(parsed.empresa); preview.push(`🏢 ${co.nome}`);}
+    if(parsed.entrada){document.getElementById('fEntrada').value=parsed.entrada; preview.push(`▶ ${parsed.entrada}`);}
+    if(parsed.saida){document.getElementById('fSaida').value=parsed.saida; preview.push(`⏹ ${parsed.saida}`);}
+    if(parsed.alimentacao&&parsed.alimentacao>0){document.getElementById('fAlimentacao').value=parsed.alimentacao; preview.push(`🍽 R$${parsed.alimentacao}`);}
+    if(parsed.uber&&parsed.uber>0){document.getElementById('fUber').value=parsed.uber; preview.push(`🚗 R$${parsed.uber}`);}
+    if(parsed.obs){document.getElementById('fObs').value=parsed.obs;}
+
+    document.getElementById('micStatus').textContent = preview.length ? '✅ ' + preview.join(' · ') : '✅ Preenchido!';
+  } catch(err) {
+    console.error(err);
+    document.getElementById('micStatus').textContent='❌ Não entendi. Fale mais devagar ou preencha manualmente.';
+  }
+}
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const month=document.getElementById('finMonth').value;
+  const f=entries.filter(e=>e.data&&e.data.startsWith(month));
+  let csv='Data,Empresa,Entrada,Saída,H.Extra,Base,Extra R$,Alim.Extra,Transporte,Total,Obs\n';
+  f.forEach(e=>{
+    const c2=calcEntry(e); const co=getCompany(e.empresa);
+    csv+=`${e.data},"${co.nome}",${e.entrada||''},${e.saida||''},${c2.extraHours.toFixed(1)},${c2.base.toFixed(2)},${c2.extraVal.toFixed(2)},${c2.alimExtra.toFixed(2)},${c2.uber.toFixed(2)},${c2.total.toFixed(2)},"${e.obs||''}"\n`;
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`freela-${month}.csv`; a.click();
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+function clearData(){if(!confirm('Apagar TODOS os dados?')) return; entries=[]; localStorage.removeItem('freela_entries'); renderTable(); renderSummary(); renderFinance(); showToast('Dados apagados');}
+</script>
+</body>
+</html>
